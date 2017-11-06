@@ -43,6 +43,23 @@ inline void MGL_ERROR(const char* description) {
     exit(1);
 }
 
+// Primitive structs
+struct vertex {
+	vec3 color;
+	vec4 position;
+};
+
+struct triangle {
+	vertex a;
+	vertex b;
+	vertex c;
+};
+
+// Global variables
+bool drawmode = true; // true = triangle, false = quad
+vector<vertex> listOfVertices;
+vec3 currentColor;
+vector<triangle> listOfTriangles;
 
 /**
  * Read pixel data starting with the pixel at coordinates
@@ -68,6 +85,11 @@ void mglReadPixels(MGLsize width,
  */
 void mglBegin(MGLpoly_mode mode)
 {
+	if(mode == MGL_TRIANGLES) {
+		drawmode = true;
+	} else {
+		drawmode = false;
+	}
 }
 
 
@@ -75,7 +97,48 @@ void mglBegin(MGLpoly_mode mode)
  * Stop specifying the vertices for a group of primitives.
  */
 void mglEnd()
-{
+{	
+	
+	if(drawmode) { // drawmode triangles
+		vertex coords[3];
+		for(unsigned int i = 0; i < listOfVertices.size(); i++) {
+			triangle newTri;
+			for(unsigned j = 0; j < 3; j++, i++) {
+				if(i >= listOfVertices.size()) { // checks for group of 3
+					goto skip;
+				}
+				coords[j] = listOfVertices.at(i);
+			}
+			newTri.a = coords[0];
+			newTri.b = coords[1];
+			newTri.c = coords[2];
+			listOfTriangles.push_back(newTri);
+		}
+	} else {
+		vertex coords[4];
+		for(unsigned i = 0; i < listOfVertices.size(); i++) {
+			triangle newTri1;
+			triangle newTri2;
+			for(unsigned j = 0; j < 4; j++, i++) {
+				if(i >= listOfVertices.size()) {
+					goto skip;
+				}
+				coords[j] = listOfVertices.at(i);
+			}
+			newTri1.a = coords[0];
+			newTri1.b = coords[1];
+			newTri1.c = coords[2];
+			newTri2.a = coords[0];
+			newTri2.b = coords[2];
+			newTri2.c = coords[3];
+			listOfTriangles.push_back(newTri1);
+			listOfTriangles.push_back(newTri2);
+		}
+	}
+	
+	skip:
+	
+	listOfVertices.clear();
 }
 
 /**
@@ -87,6 +150,7 @@ void mglEnd()
 void mglVertex2(MGLfloat x,
                 MGLfloat y)
 {
+	mglVertex3(x,y,0.0f);
 }
 
 /**
@@ -97,6 +161,14 @@ void mglVertex3(MGLfloat x,
                 MGLfloat y,
                 MGLfloat z)
 {
+	vec4 position = {x,y,z,1};
+	
+	vertex newVertex;
+	
+	newVertex.position = position;
+	newVertex.color = currentColor;
+
+	listOfVertices.push_back(newVertex);
 }
 
 /**

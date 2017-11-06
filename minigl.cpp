@@ -298,4 +298,5 @@ void mglColor(MGLfloat red,
               MGLfloat green,
               MGLfloat blue)
 {
+	currentColor = {red, green, blue};
 }

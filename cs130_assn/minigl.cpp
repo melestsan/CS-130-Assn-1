@@ -77,6 +77,7 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
+	
 }
 
 /**
@@ -137,7 +138,6 @@ void mglEnd()
 	}
 	
 	skip:
-	
 	listOfVertices.clear();
 }
 

@@ -77,7 +77,11 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
-	
+	// write to *data, an array of MGLpixels	
+	for(unsigned int i = 0; i < width*height; i++) {	
+		MGLpixel newPixel= Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
+		data[i] = newPixel;
+	}
 }
 
 /**

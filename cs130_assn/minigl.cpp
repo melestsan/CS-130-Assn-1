@@ -77,6 +77,16 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
+	// assume in triangle mode
+	// just work with one triangle
+	triangle init = listOfTriangles.at(0);
+
+	int pixWidth = 2 / width;
+	int pixHeight = 2 / height;
+
+	double xprime = 
+	double yprime = 
+
 	// write to *data, an array of MGLpixels	
 	for(unsigned int i = 0; i < width*height; i++) {	
 		MGLpixel newPixel= Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);

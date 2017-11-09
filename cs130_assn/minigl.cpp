@@ -73,24 +73,65 @@ vector<triangle> listOfTriangles;
  * with the actual pixel values that should be displayed on
  * the two-dimensional screen.
  */
+ 
+/**
+ * A function to help determine the bounding box of the passed
+ * in triangle
+ */
+void determineBoundingBox(const triangle& tri, unsigned& start, unsigned& end, const float pixWidth, const float pixHeight, const MGLsize width) {
+	
+	MGLfloat lowestX = min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0]));
+	MGLfloat lowestY = min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1]));
+	MGLfloat highestX = max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0]));
+	MGLfloat highestY = max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1]));
+	
+	int starti = (lowestX + 1) / pixWidth;
+	int startj = (lowestY + 1) / pixHeight;
+	int endi = (highestX + 1) / pixWidth;
+	int endj = (highestY + 1) / pixHeight;
+	
+	start = width*startj + starti;
+	end = width*endj + endi;
+	
+	return;
+}
+ 
 void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {
 	// assume in triangle mode
 	// just work with one triangle
-	triangle init = listOfTriangles.at(0);
-
-	int pixWidth = 2 / width;
-	int pixHeight = 2 / height;
-
-	double xprime = 
-	double yprime = 
-
-	// write to *data, an array of MGLpixels	
-	for(unsigned int i = 0; i < width*height; i++) {	
-		MGLpixel newPixel= Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
-		data[i] = newPixel;
+	
+	float pixWidth = 2.0 / width;
+	float pixHeight = 2.0 / height;
+	
+	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
+		// compute bounding box dimensions for each triangle
+		unsigned startpix = 0;
+		unsigned endpix = 0;		
+		
+		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width);
+		
+		for(unsigned vert = 0; vert < width*height; vert++) {
+			if(vert < startpix || vert > endpix) {
+				// data[vert] = Make_Pixel(0,0,0); // make black
+				continue;
+			}
+			currentColor = t->a.color;
+			
+			int i = static_cast<int>(floor((t->a.position[0]+1) / pixWidth));
+			int j = static_cast<int>(floor((t->a.position[1]+1) / pixHeight));
+			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
+			
+			i = static_cast<int>(floor((t->b.position[0]+1) / pixWidth));
+			j = static_cast<int>(floor((t->b.position[1]+1) / pixHeight));
+			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
+			
+			i = static_cast<int>(floor((t->c.position[0]+1) / pixWidth));
+			j = static_cast<int>(floor((t->c.position[1]+1) / pixHeight));
+			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);	
+		}
 	}
 }
 
@@ -149,8 +190,8 @@ void mglEnd()
 			listOfTriangles.push_back(newTri1);
 			listOfTriangles.push_back(newTri2);
 		}
-	}
-	
+	}		
+
 	skip:
 	listOfVertices.clear();
 }
@@ -312,5 +353,5 @@ void mglColor(MGLfloat red,
               MGLfloat green,
               MGLfloat blue)
 {
-	currentColor = {red, green, blue};
+	currentColor = {red*255, green*255, blue*255};
 }

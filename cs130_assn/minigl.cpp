@@ -78,8 +78,13 @@ vector<triangle> listOfTriangles;
  * A function to help determine the bounding box of the passed
  * in triangle
  */
-void determineBoundingBox(const triangle& tri, unsigned& start, unsigned& end, const float pixWidth, const float pixHeight, const MGLsize width) {
-	
+void determineBoundingBox(const triangle& tri,
+						  unsigned& start, 
+						  unsigned& end, 
+						  const float pixWidth, 
+						  const float pixHeight, 
+						  const MGLsize width)
+{	
 	MGLfloat lowestX = min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0]));
 	MGLfloat lowestY = min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1]));
 	MGLfloat highestX = max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0]));
@@ -93,7 +98,40 @@ void determineBoundingBox(const triangle& tri, unsigned& start, unsigned& end, c
 	start = width*startj + starti;
 	end = width*endj + endi;
 	
+	// start = {lowestX, lowestY};
+	// end = {highestX, highestY};
+	
 	return;
+}
+
+/**
+ * Determines if a pixel in within the bounding box
+ */
+bool pointNotInBoundingBox(const unsigned pixel, 
+						   const unsigned start, 
+						   const unsigned end, 
+						   const MGLsize width) 
+{
+	unsigned screenI = pixel % width;
+	unsigned screenJ = pixel / width;
+	
+	return (screenI < (start % width) || screenI > (end % width) ||
+			screenJ < (start / width) || screenJ > (end / width));
+}
+
+/**
+ * A function that determine if a screen pixel coordinate is
+ * inside the triangle in world space
+ */
+bool pointInTriangle(const int i, 
+					 const int j, 
+					 const float pixWidth, 
+					 const float pixHeight) 
+{
+	float worldX = (i + 0.5)*pixWidth - 1;
+	float worldY = (j + 0.5)*pixHeight - 1;
+	
+	return true;
 }
  
 void mglReadPixels(MGLsize width,
@@ -106,20 +144,27 @@ void mglReadPixels(MGLsize width,
 	float pixWidth = 2.0 / width;
 	float pixHeight = 2.0 / height;
 	
+	unsigned startpix = 0;
+	unsigned endpix = 0;
+	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
-		// compute bounding box dimensions for each triangle
-		unsigned startpix = 0;
-		unsigned endpix = 0;		
 		
 		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width);
 		
-		for(unsigned vert = 0; vert < width*height; vert++) {
-			if(vert < startpix || vert > endpix) {
+		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
+				
+			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
 				// data[vert] = Make_Pixel(0,0,0); // make black
 				continue;
 			}
-			currentColor = t->a.color;
 			
+			currentColor = t->a.color;
+			int i = static_cast<int>(floor((t->a.position[0]+1) / pixWidth));
+			int j = static_cast<int>(floor((t->a.position[1]+1) / pixHeight));
+			if(pointInTriangle(i, j, pixWidth, pixHeight)) {
+				data[pixel] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
+			}
+			/**
 			int i = static_cast<int>(floor((t->a.position[0]+1) / pixWidth));
 			int j = static_cast<int>(floor((t->a.position[1]+1) / pixHeight));
 			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
@@ -131,6 +176,7 @@ void mglReadPixels(MGLsize width,
 			i = static_cast<int>(floor((t->c.position[0]+1) / pixWidth));
 			j = static_cast<int>(floor((t->c.position[1]+1) / pixHeight));
 			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);	
+			*/
 		}
 	}
 }

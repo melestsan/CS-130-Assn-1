@@ -85,10 +85,10 @@ void determineBoundingBox(const triangle& tri,
 						  const float pixHeight, 
 						  const MGLsize width)
 {	
-	MGLfloat lowestX = max(min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0])), -1);
-	MGLfloat lowestY = max(min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1])), -1);
-	MGLfloat highestX = min(max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0])), 1)
-	MGLfloat highestY = min(max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1])), 1);
+	MGLfloat lowestX = max(min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0])), -1.0f);
+	MGLfloat lowestY = max(min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1])), -1.0f);
+	MGLfloat highestX = min(max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0])), 1.0f);
+	MGLfloat highestY = min(max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1])), 1.0f);
 	
 	int starti = (lowestX + 1) / pixWidth;
 	int startj = (lowestY + 1) / pixHeight;
@@ -96,11 +96,8 @@ void determineBoundingBox(const triangle& tri,
 	int endj = (highestY + 1) / pixHeight;
 
 
-	start = width*startj + starti;
-	end = width*endj + endi;
-	
-	// start = {lowestX, lowestY};
-	// end = {highestX, highestY};
+	start = floor(width*startj + starti);
+	end = ceil(width*endj + endi);
 	
 	return;
 }
@@ -121,10 +118,23 @@ bool pointNotInBoundingBox(const unsigned pixel,
 }
 
 /**
+ * Determines the area of a triangle using only vertices
+ * Note: Multiplying by 1/2 is dropped due to this
+ * function's use of determining barycentric coordinates via
+ * ratios between triangle areas.
+ */
+float area(const vertex a, const vertex b, const vertex c) {
+	return (a.position[0] * (b.position[1] - c.position[1])) + 
+		   (a.position[1] * (c.position[0] - b.position[0])) + 
+	       ((b.position[0] * c.position[1]) - (b.position[1]*c.position[0]));
+}
+
+/**
  * A function that determine if a screen pixel coordinate is
  * inside the triangle in world space
  */
-bool pointInTriangle(const int i, 
+bool pointInTriangle(const triangle& tri,
+					 const int i, 
 					 const int j, 
 					 const float pixWidth, 
 					 const float pixHeight) 
@@ -132,8 +142,20 @@ bool pointInTriangle(const int i,
 	float worldX = (i + 0.5)*pixWidth - 1;
 	float worldY = (j + 0.5)*pixHeight - 1;
 	
-	// calculate barycentric coords
-	// if alpha, beta, or gamma is negative return negative
+	vec4 pointPos = {worldX, worldY, 0, 1};
+	vertex point;
+	point.position = pointPos;
+	point.color = currentColor;
+	
+	float areaOfTriangle = area(tri.a,tri.b,tri.c);
+	
+	float alpha = area(point, tri.b, tri.c) / areaOfTriangle;
+	float beta = area(tri.a, point,tri.c) / areaOfTriangle;
+	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
+	
+	if(alpha < 0.0f || beta < 0.0f || gamma < 0.0f) {
+		return false;
+	}
 
 	return true;
 }
@@ -141,10 +163,7 @@ bool pointInTriangle(const int i,
 void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
-{
-	// assume in triangle mode
-	// just work with one triangle
-	
+{	
 	float pixWidth = 2.0 / width;
 	float pixHeight = 2.0 / height;
 	
@@ -162,24 +181,13 @@ void mglReadPixels(MGLsize width,
 				continue;
 			}
 			currentColor = t->a.color;
-			int i = static_cast<int>(floor((t->a.position[0]+1) / pixWidth));
-			int j = static_cast<int>(floor((t->a.position[1]+1) / pixHeight));
-			if(pointInTriangle(i, j, pixWidth, pixHeight)) {
+			
+			int i = pixel % width;
+			int j = pixel / width;
+			
+			if(pointInTriangle(*t, i, j, pixWidth, pixHeight)) {
 				data[pixel] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
 			}
-			/**
-			int i = static_cast<int>(floor((t->a.position[0]+1) / pixWidth));
-			int j = static_cast<int>(floor((t->a.position[1]+1) / pixHeight));
-			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
-			
-			i = static_cast<int>(floor((t->b.position[0]+1) / pixWidth));
-			j = static_cast<int>(floor((t->b.position[1]+1) / pixHeight));
-			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
-			
-			i = static_cast<int>(floor((t->c.position[0]+1) / pixWidth));
-			j = static_cast<int>(floor((t->c.position[1]+1) / pixHeight));
-			data[width*j + i] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);	
-			*/
 		}
 	}
 }

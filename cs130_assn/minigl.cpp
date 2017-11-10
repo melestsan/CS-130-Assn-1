@@ -177,7 +177,7 @@ void mglReadPixels(MGLsize width,
 		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
 				
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
-				// data[vert] = Make_Pixel(0,0,0); // make black
+				data[pixel] = Make_Pixel(0,0,0); // make black
 				continue;
 			}
 			currentColor = t->a.color;

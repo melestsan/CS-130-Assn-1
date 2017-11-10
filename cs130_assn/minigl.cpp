@@ -57,9 +57,14 @@ struct triangle {
 
 // Global variables
 bool drawmode = true; // true = triangle, false = quad
-vector<vertex> listOfVertices;
+bool matmode = true; // true = proj, false = modelview
+mat4 currentModelMatrix;
+mat4 currentProjMatrix;
 vec3 currentColor;
+vector<vertex> listOfVertices;
 vector<triangle> listOfTriangles;
+vector<mat4> matrixStackModel;
+vector<mat4> matrixStackProj;
 
 /**
  * Read pixel data starting with the pixel at coordinates
@@ -83,17 +88,18 @@ void determineBoundingBox(const triangle& tri,
 						  unsigned& end, 
 						  const float pixWidth, 
 						  const float pixHeight, 
-						  const MGLsize width)
+						  const MGLsize width,
+						  const MGLsize height)
 {	
-	MGLfloat lowestX = max(min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0])), -1.0f);
-	MGLfloat lowestY = max(min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1])), -1.0f);
-	MGLfloat highestX = min(max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0])), 1.0f);
-	MGLfloat highestY = min(max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1])), 1.0f);
+	MGLfloat lowestX = min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0]));
+	MGLfloat lowestY = min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1]));
+	MGLfloat highestX = max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0]));
+	MGLfloat highestY = max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1]));
 	
-	int starti = (lowestX + 1) / pixWidth;
-	int startj = (lowestY + 1) / pixHeight;
-	int endi = (highestX + 1) / pixWidth;
-	int endj = (highestY + 1) / pixHeight;
+	int starti = max((lowestX + 1) / pixWidth, 0.0f);
+	int startj = max((lowestY + 1) / pixHeight, 0.0f);
+	int endi = min((highestX + 1) / pixWidth, static_cast<float>(width-1));
+	int endj = min((highestY + 1) / pixHeight, static_cast<float>(height-1));
 
 
 	start = floor(width*startj + starti);
@@ -123,7 +129,10 @@ bool pointNotInBoundingBox(const unsigned pixel,
  * function's use of determining barycentric coordinates via
  * ratios between triangle areas.
  */
-float area(const vertex a, const vertex b, const vertex c) {
+float area(const vertex a, 
+		   const vertex b, 
+		   const vertex c)
+{
 	return (a.position[0] * (b.position[1] - c.position[1])) + 
 		   (a.position[1] * (c.position[0] - b.position[0])) + 
 	       ((b.position[0] * c.position[1]) - (b.position[1]*c.position[0]));
@@ -172,12 +181,13 @@ void mglReadPixels(MGLsize width,
 	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
 		
-		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width);
+		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width, height);
+		cout << "startpix:" << startpix << " endpix:" << endpix << endl;
 		
 		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
 				
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
-				data[pixel] = Make_Pixel(0,0,0); // make black
+				//data[pixel] = Make_Pixel(0,0,0); // make black
 				continue;
 			}
 			currentColor = t->a.color;
@@ -211,8 +221,7 @@ void mglBegin(MGLpoly_mode mode)
  */
 void mglEnd()
 {	
-	
-	if(drawmode) { // drawmode triangles
+	if(drawmode) { // handles triangles
 		vertex coords[3];
 		for(unsigned int i = 0; i < listOfVertices.size(); i++) {
 			triangle newTri;
@@ -227,7 +236,7 @@ void mglEnd()
 			newTri.c = coords[2];
 			listOfTriangles.push_back(newTri);
 		}
-	} else {
+	} else { // handles quads
 		vertex coords[4];
 		for(unsigned i = 0; i < listOfVertices.size(); i++) {
 			triangle newTri1;
@@ -274,6 +283,12 @@ void mglVertex3(MGLfloat x,
                 MGLfloat z)
 {
 	vec4 position = {x,y,z,1};
+
+	//if(matmode) {
+		position = currentProjMatrix * position;
+	//} else {
+	//	position = currentModelMatrix * position;
+	//}
 	
 	vertex newVertex;
 	
@@ -288,6 +303,11 @@ void mglVertex3(MGLfloat x,
  */
 void mglMatrixMode(MGLmatrix_mode mode)
 {
+	if(mode == MGL_PROJECTION) {
+		matmode = true;
+	} else {
+		matmode = false;
+	}
 }
 
 /**
@@ -296,6 +316,11 @@ void mglMatrixMode(MGLmatrix_mode mode)
  */
 void mglPushMatrix()
 {
+	if(matmode) {
+		matrixStackProj.push_back(currentProjMatrix);
+	} else {
+		matrixStackModel.push_back(currentModelMatrix);
+	}
 }
 
 /**
@@ -304,6 +329,15 @@ void mglPushMatrix()
  */
 void mglPopMatrix()
 {
+	if(matmode) {
+		if(!matrixStackProj.empty()) {
+			matrixStackProj.erase(matrixStackProj.end());
+		}
+	} else {
+		if(!matrixStackProj.empty()) {
+			matrixStackModel.erase(matrixStackModel.end());
+		}
+	}
 }
 
 /**
@@ -311,6 +345,11 @@ void mglPopMatrix()
  */
 void mglLoadIdentity()
 {
+	if(matmode) {
+		currentProjMatrix = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+	} else {
+		currentModelMatrix = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+	}
 }
 
 /**
@@ -327,6 +366,17 @@ void mglLoadIdentity()
  */
 void mglLoadMatrix(const MGLfloat *matrix)
 {
+	if(matmode) {
+		currentProjMatrix = {matrix[0],matrix[4],matrix[8],matrix[12],
+						 matrix[1],matrix[5],matrix[9],matrix[13],
+						 matrix[2],matrix[6],matrix[10],matrix[14],
+						 matrix[3],matrix[7],matrix[11],matrix[15]};
+	} else {
+		currentModelMatrix = {matrix[0],matrix[4],matrix[8],matrix[12],
+						 matrix[1],matrix[5],matrix[9],matrix[13],
+						 matrix[2],matrix[6],matrix[10],matrix[14],
+						 matrix[3],matrix[7],matrix[11],matrix[15]};
+	}
 }
 
 /**
@@ -343,6 +393,15 @@ void mglLoadMatrix(const MGLfloat *matrix)
  */
 void mglMultMatrix(const MGLfloat *matrix)
 {
+	mat4 multMatrix = {matrix[0],matrix[1],matrix[2],matrix[3],
+					   matrix[4],matrix[5],matrix[6],matrix[7],
+					   matrix[8],matrix[9],matrix[10],matrix[11],
+					   matrix[12],matrix[13],matrix[14],matrix[15]};
+    if(matmode) {					   
+		currentProjMatrix = currentProjMatrix * multMatrix;
+	} else {
+		currentModelMatrix = currentModelMatrix * multMatrix;
+	}
 }
 
 /**
@@ -401,6 +460,27 @@ void mglOrtho(MGLfloat left,
               MGLfloat near,
               MGLfloat far)
 {
+	//scale
+	MGLfloat scaleX = 2 / (right - left);
+	MGLfloat scaleY = 2 / (top - bottom);
+	MGLfloat scaleZ = -2 / (far - near);
+	
+	//translate
+	MGLfloat transX = -(right + left) / (right - left);
+	MGLfloat transY = -(top + bottom) / (top - bottom);
+	MGLfloat transZ = -(far + near) / (far - near);
+	
+	if(matmode) {
+		currentProjMatrix = {scaleX, currentProjMatrix(0,1), currentProjMatrix(0,2), currentProjMatrix(0,3),
+						     currentProjMatrix(1,0), scaleY, currentProjMatrix(1,2), currentProjMatrix(1,3),
+						     currentProjMatrix(2,0), currentProjMatrix(2, 1), scaleZ, currentProjMatrix(2,3),
+							 transX, transY, transZ, currentProjMatrix(3,3)};
+	} else {
+		currentModelMatrix = {scaleX, currentModelMatrix(0,1), currentModelMatrix(0,2), currentModelMatrix(0,3),
+							  currentModelMatrix(1,0), scaleY, currentModelMatrix(1,2), currentModelMatrix(1,3),
+							  currentModelMatrix(2,0), currentModelMatrix(2, 1), scaleZ, currentModelMatrix(2,3),
+							  transX, transY, transZ, currentModelMatrix(3,3)};
+	}
 }
 
 /**

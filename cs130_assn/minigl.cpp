@@ -73,11 +73,123 @@ vector<triangle> listOfTriangles;
  * with the actual pixel values that should be displayed on
  * the two-dimensional screen.
  */
+ 
+/**
+ * A function to help determine the bounding box of the passed
+ * in triangle
+ */
+void determineBoundingBox(const triangle& tri,
+						  unsigned& start, 
+						  unsigned& end, 
+						  const float pixWidth, 
+						  const float pixHeight, 
+						  const MGLsize width)
+{	
+	MGLfloat lowestX = max(min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0])), -1.0f);
+	MGLfloat lowestY = max(min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1])), -1.0f);
+	MGLfloat highestX = min(max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0])), 1.0f);
+	MGLfloat highestY = min(max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1])), 1.0f);
+	
+	int starti = (lowestX + 1) / pixWidth;
+	int startj = (lowestY + 1) / pixHeight;
+	int endi = (highestX + 1) / pixWidth;
+	int endj = (highestY + 1) / pixHeight;
+
+
+	start = floor(width*startj + starti);
+	end = ceil(width*endj + endi);
+	
+	return;
+}
+
+/**
+ * Determines if a pixel in within the bounding box
+ */
+bool pointNotInBoundingBox(const unsigned pixel, 
+						   const unsigned start, 
+						   const unsigned end, 
+						   const MGLsize width) 
+{
+	unsigned screenI = pixel % width;
+	unsigned screenJ = pixel / width;
+	
+	return (screenI < (start % width) || screenI > (end % width) ||
+			screenJ < (start / width) || screenJ > (end / width));
+}
+
+/**
+ * Determines the area of a triangle using only vertices
+ * Note: Multiplying by 1/2 is dropped due to this
+ * function's use of determining barycentric coordinates via
+ * ratios between triangle areas.
+ */
+float area(const vertex a, const vertex b, const vertex c) {
+	return (a.position[0] * (b.position[1] - c.position[1])) + 
+		   (a.position[1] * (c.position[0] - b.position[0])) + 
+	       ((b.position[0] * c.position[1]) - (b.position[1]*c.position[0]));
+}
+
+/**
+ * A function that determine if a screen pixel coordinate is
+ * inside the triangle in world space
+ */
+bool pointInTriangle(const triangle& tri,
+					 const int i, 
+					 const int j, 
+					 const float pixWidth, 
+					 const float pixHeight) 
+{
+	float worldX = (i + 0.5)*pixWidth - 1;
+	float worldY = (j + 0.5)*pixHeight - 1;
+	
+	vec4 pointPos = {worldX, worldY, 0, 1};
+	vertex point;
+	point.position = pointPos;
+	point.color = currentColor;
+	
+	float areaOfTriangle = area(tri.a,tri.b,tri.c);
+	
+	float alpha = area(point, tri.b, tri.c) / areaOfTriangle;
+	float beta = area(tri.a, point,tri.c) / areaOfTriangle;
+	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
+	
+	if(alpha < 0.0f || beta < 0.0f || gamma < 0.0f) {
+		return false;
+	}
+
+	return true;
+}
+ 
 void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
-{
+{	
+	float pixWidth = 2.0 / width;
+	float pixHeight = 2.0 / height;
 	
+	unsigned startpix = 0;
+	unsigned endpix = 0;
+	
+	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
+		
+		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width);
+		
+		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
+				
+			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
+				data[pixel] = Make_Pixel(0,0,0); // make black
+				continue;
+			}
+			currentColor = t->a.color;
+			
+			int i = pixel % width;
+			int j = pixel / width;
+			
+			if(pointInTriangle(*t, i, j, pixWidth, pixHeight)) {
+				data[pixel] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
+			}
+		}
+	}
 }
 
 /**
@@ -135,8 +247,8 @@ void mglEnd()
 			listOfTriangles.push_back(newTri1);
 			listOfTriangles.push_back(newTri2);
 		}
-	}
-	
+	}		
+
 	skip:
 	listOfVertices.clear();
 }
@@ -298,5 +410,5 @@ void mglColor(MGLfloat red,
               MGLfloat green,
               MGLfloat blue)
 {
-	currentColor = {red, green, blue};
+	currentColor = {red*255, green*255, blue*255};
 }

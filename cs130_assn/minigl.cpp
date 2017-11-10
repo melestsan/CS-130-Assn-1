@@ -85,16 +85,17 @@ void determineBoundingBox(const triangle& tri,
 						  const float pixHeight, 
 						  const MGLsize width)
 {	
-	MGLfloat lowestX = min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0]));
-	MGLfloat lowestY = min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1]));
-	MGLfloat highestX = max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0]));
-	MGLfloat highestY = max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1]));
+	MGLfloat lowestX = max(min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0])), -1);
+	MGLfloat lowestY = max(min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1])), -1);
+	MGLfloat highestX = min(max(tri.a.position[0],max(tri.b.position[0], tri.c.position[0])), 1)
+	MGLfloat highestY = min(max(tri.a.position[1],max(tri.b.position[1], tri.c.position[1])), 1);
 	
 	int starti = (lowestX + 1) / pixWidth;
 	int startj = (lowestY + 1) / pixHeight;
 	int endi = (highestX + 1) / pixWidth;
 	int endj = (highestY + 1) / pixHeight;
-	
+
+
 	start = width*startj + starti;
 	end = width*endj + endi;
 	
@@ -131,6 +132,9 @@ bool pointInTriangle(const int i,
 	float worldX = (i + 0.5)*pixWidth - 1;
 	float worldY = (j + 0.5)*pixHeight - 1;
 	
+	// calculate barycentric coords
+	// if alpha, beta, or gamma is negative return negative
+
 	return true;
 }
  
@@ -157,7 +161,6 @@ void mglReadPixels(MGLsize width,
 				// data[vert] = Make_Pixel(0,0,0); // make black
 				continue;
 			}
-			
 			currentColor = t->a.color;
 			int i = static_cast<int>(floor((t->a.position[0]+1) / pixWidth));
 			int j = static_cast<int>(floor((t->a.position[1]+1) / pixHeight));

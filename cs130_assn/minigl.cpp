@@ -84,12 +84,12 @@ vector<mat4> matrixStackProj;
  * in triangle
  */
 void determineBoundingBox(const triangle& tri,
-						  unsigned& start, 
-						  unsigned& end, 
-						  const float pixWidth, 
-						  const float pixHeight, 
-						  const MGLsize width,
-						  const MGLsize height)
+			  unsigned& start, 
+			  unsigned& end, 
+			  const float pixWidth, 
+			  const float pixHeight, 
+			  const MGLsize width, 
+			  const MGLsize height)
 {	
 	MGLfloat lowestX = min(tri.a.position[0],min(tri.b.position[0], tri.c.position[0]));
 	MGLfloat lowestY = min(tri.a.position[1],min(tri.b.position[1], tri.c.position[1]));
@@ -112,9 +112,9 @@ void determineBoundingBox(const triangle& tri,
  * Determines if a pixel in within the bounding box
  */
 bool pointNotInBoundingBox(const unsigned pixel, 
-						   const unsigned start, 
-						   const unsigned end, 
-						   const MGLsize width) 
+			   const unsigned start, 
+			   const unsigned end, 
+			   const MGLsize width) 
 {
 	unsigned screenI = pixel % width;
 	unsigned screenJ = pixel / width;
@@ -130,11 +130,11 @@ bool pointNotInBoundingBox(const unsigned pixel,
  * ratios between triangle areas.
  */
 float area(const vertex a, 
-		   const vertex b, 
-		   const vertex c)
+	   const vertex b, 
+	   const vertex c)
 {
 	return (a.position[0] * (b.position[1] - c.position[1])) + 
-		   (a.position[1] * (c.position[0] - b.position[0])) + 
+	       (a.position[1] * (c.position[0] - b.position[0])) + 
 	       ((b.position[0] * c.position[1]) - (b.position[1]*c.position[0]));
 }
 
@@ -143,10 +143,10 @@ float area(const vertex a,
  * inside the triangle in world space
  */
 bool pointInTriangle(const triangle& tri,
-					 const int i, 
-					 const int j, 
-					 const float pixWidth, 
-					 const float pixHeight) 
+		     const int i, 
+		     const int j, 
+		     const float pixWidth,
+		     const float pixHeight) 
 {
 	float worldX = (i + 0.5)*pixWidth - 1;
 	float worldY = (j + 0.5)*pixHeight - 1;
@@ -180,12 +180,8 @@ void mglReadPixels(MGLsize width,
 	unsigned endpix = 0;
 	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
-		
-		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width, height);
-		cout << "startpix:" << startpix << " endpix:" << endpix << endl;
-		
+		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width, height);		
 		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
-				
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
 				//data[pixel] = Make_Pixel(0,0,0); // make black
 				continue;
@@ -226,7 +222,7 @@ void mglEnd()
 		for(unsigned int i = 0; i < listOfVertices.size(); i++) {
 			triangle newTri;
 			for(unsigned j = 0; j < 3; j++, i++) {
-				if(i >= listOfVertices.size()) { // checks for group of 3
+				if(i >= listOfVertices.size()) {
 					goto skip;
 				}
 				coords[j] = listOfVertices.at(i);
@@ -284,11 +280,8 @@ void mglVertex3(MGLfloat x,
 {
 	vec4 position = {x,y,z,1};
 
-	//if(matmode) {
-		position = currentProjMatrix * position;
-	//} else {
-	//	position = currentModelMatrix * position;
-	//}
+	position = currentProjMatrix * position;
+	position = currentModelMatrix * position;
 	
 	vertex newVertex;
 	

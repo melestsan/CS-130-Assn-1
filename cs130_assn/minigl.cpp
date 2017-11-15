@@ -27,6 +27,8 @@
 
 using namespace std;
 
+#define PI 3.14159265
+
 /**
  * Useful data types
  */
@@ -63,8 +65,6 @@ vector<mat4> initializer (1,zeroMatrix);
 // Global variables
 bool drawmode = true; // true = triangle, false = quad
 bool matmode = true; // true = proj, false = modelview
-// mat4 currentModelMatrix;
-// mat4 currentProjMatrix;
 vec3 currentColor;
 vector<vertex> listOfVertices;
 vector<triangle> listOfTriangles;
@@ -177,12 +177,13 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {	
-	cout << "Begin" << endl;
+	/*
 	for(unsigned i = 0; i < listOfTriangles.size(); i++) {
 		cout << i << ":" << listOfTriangles.at(i).a.position << endl;
 		cout << i << ":" << listOfTriangles.at(i).b.position << endl;
 		cout << i << ":" << listOfTriangles.at(i).c.position << endl << endl;
 	}
+	*/
 	
 	float pixWidth = 2.0 / width;
 	float pixHeight = 2.0 / height;
@@ -194,7 +195,6 @@ void mglReadPixels(MGLsize width,
 		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width, height);		
 		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
-				//data[pixel] = Make_Pixel(0,0,0); // make black
 				continue;
 			}
 			currentColor = t->a.color;
@@ -439,8 +439,8 @@ void mglRotate(MGLfloat angle,
                MGLfloat y,
                MGLfloat z)
 {
-	float c = cos(angle);
-	float s = sin(angle);
+	float c = cos(angle * PI / 180);
+	float s = sin(angle * PI / 180);
 	
 	//normalize vector
 	float size = sqrt(pow(x,2) + pow(y,2) + pow(z,2));
@@ -448,7 +448,7 @@ void mglRotate(MGLfloat angle,
 	float newY = y / size;
 	float newZ = z / size;
 	
-	float diffC = 1 - c;
+	float diffC = 1.0f - c;
 	
 	float XVal = pow(newX,2)*(diffC) + c;
 	float YVal = pow(newY,2)*(diffC) + c;
@@ -470,6 +470,7 @@ void mglRotate(MGLfloat angle,
 						 0,
 						 
 						 0,0,0,1};
+						 
 	if(matmode) {
 		matrixStackProj.top() = matrixStackProj.top() * rotateMatrix;
 	} else {

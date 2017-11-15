@@ -280,9 +280,8 @@ void mglVertex3(MGLfloat x,
 {
 	vec4 position = {x,y,z,1};
 
-	position = currentProjMatrix * position;
-	position = currentModelMatrix * position;
-	
+	position = currentProjMatrix * currentModelMatrix * position;	
+
 	vertex newVertex;
 	
 	newVertex.position = position;
@@ -361,14 +360,14 @@ void mglLoadMatrix(const MGLfloat *matrix)
 {
 	if(matmode) {
 		currentProjMatrix = {matrix[0],matrix[4],matrix[8],matrix[12],
-						 matrix[1],matrix[5],matrix[9],matrix[13],
-						 matrix[2],matrix[6],matrix[10],matrix[14],
-						 matrix[3],matrix[7],matrix[11],matrix[15]};
+				     matrix[1],matrix[5],matrix[9],matrix[13],
+				     matrix[2],matrix[6],matrix[10],matrix[14],
+				     matrix[3],matrix[7],matrix[11],matrix[15]};
 	} else {
 		currentModelMatrix = {matrix[0],matrix[4],matrix[8],matrix[12],
-						 matrix[1],matrix[5],matrix[9],matrix[13],
-						 matrix[2],matrix[6],matrix[10],matrix[14],
-						 matrix[3],matrix[7],matrix[11],matrix[15]};
+				      matrix[1],matrix[5],matrix[9],matrix[13],
+				      matrix[2],matrix[6],matrix[10],matrix[14],
+				      matrix[3],matrix[7],matrix[11],matrix[15]};
 	}
 }
 
@@ -387,10 +386,10 @@ void mglLoadMatrix(const MGLfloat *matrix)
 void mglMultMatrix(const MGLfloat *matrix)
 {
 	mat4 multMatrix = {matrix[0],matrix[1],matrix[2],matrix[3],
-					   matrix[4],matrix[5],matrix[6],matrix[7],
-					   matrix[8],matrix[9],matrix[10],matrix[11],
-					   matrix[12],matrix[13],matrix[14],matrix[15]};
-    if(matmode) {					   
+			   matrix[4],matrix[5],matrix[6],matrix[7],
+			   matrix[8],matrix[9],matrix[10],matrix[11],
+			   matrix[12],matrix[13],matrix[14],matrix[15]};
+	if(matmode) {					   
 		currentProjMatrix = currentProjMatrix * multMatrix;
 	} else {
 		currentModelMatrix = currentModelMatrix * multMatrix;
@@ -440,6 +439,21 @@ void mglFrustum(MGLfloat left,
                 MGLfloat near,
                 MGLfloat far)
 {
+	MGLfloat scaleX = (2*near) / (right - left);
+	MGLfloat scaleY = (2*near) / (top - bottom);
+	MGLfloat C = -(far + near) / (far -near);
+
+	MGLfloat A = (right + left) / (right - left);
+	MGLfloat B = (top + bottom) / (top - bottom);
+	MGLfloat D = - (2*far*near) / (far - near);
+
+	mat4 projMatrix = {scaleX,0,0,0,  0,scaleY,0,0,  A,B,C,-1,  0,0,D,0};
+
+	if(matmode) {
+		currentProjMatrix = currentProjMatrix * projMatrix;
+	} else {
+		currentModelMatrix = currentProjMatrix * projMatrix;
+	}
 }
 
 /**
@@ -463,17 +477,13 @@ void mglOrtho(MGLfloat left,
 	MGLfloat transY = -(top + bottom) / (top - bottom);
 	MGLfloat transZ = -(far + near) / (far - near);
 	
+	mat4 orthoMatrix = {scaleX,0,0,0,  0,scaleY,0,0, 0,0,0,scaleZ, transX,transY,transZ,1};
+
 	if(matmode) {
-		currentProjMatrix = {scaleX, currentProjMatrix(0,1), currentProjMatrix(0,2), currentProjMatrix(0,3),
-						     currentProjMatrix(1,0), scaleY, currentProjMatrix(1,2), currentProjMatrix(1,3),
-						     currentProjMatrix(2,0), currentProjMatrix(2, 1), scaleZ, currentProjMatrix(2,3),
-							 transX, transY, transZ, currentProjMatrix(3,3)};
+		currentProjMatrix = currentProjMatrix * orthoMatrix; 
 	} else {
-		currentModelMatrix = {scaleX, currentModelMatrix(0,1), currentModelMatrix(0,2), currentModelMatrix(0,3),
-							  currentModelMatrix(1,0), scaleY, currentModelMatrix(1,2), currentModelMatrix(1,3),
-							  currentModelMatrix(2,0), currentModelMatrix(2, 1), scaleZ, currentModelMatrix(2,3),
-							  transX, transY, transZ, currentModelMatrix(3,3)};
-	}
+		currentModelMatrix = currentModelMatrix * orthoMatrix;
+	} 
 }
 
 /**

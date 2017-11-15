@@ -23,6 +23,7 @@
 #include <cmath>
 #include <vector>
 #include <cstdio>
+#include <stack>
 
 using namespace std;
 
@@ -55,30 +56,21 @@ struct triangle {
 	vertex c;
 };
 
+
+mat4 zeroMatrix = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+vector<mat4> initializer (1,zeroMatrix);
+
 // Global variables
 bool drawmode = true; // true = triangle, false = quad
 bool matmode = true; // true = proj, false = modelview
-mat4 currentModelMatrix;
-mat4 currentProjMatrix;
+// mat4 currentModelMatrix;
+// mat4 currentProjMatrix;
 vec3 currentColor;
 vector<vertex> listOfVertices;
 vector<triangle> listOfTriangles;
-vector<mat4> matrixStackModel;
-vector<mat4> matrixStackProj;
+stack<mat4, vector<mat4> > matrixStackProj (initializer);
+stack<mat4, vector<mat4> > matrixStackModel (initializer);
 
-/**
- * Read pixel data starting with the pixel at coordinates
- * (0, 0), up to (width,  height), into the array
- * pointed to by data.  The boundaries are lower-inclusive,
- * that is, a call with width = height = 1 would just read
- * the pixel at (0, 0).
- *
- * Rasterization and z-buffering should be performed when
- * this function is called, so that the data array is filled
- * with the actual pixel values that should be displayed on
- * the two-dimensional screen.
- */
- 
 /**
  * A function to help determine the bounding box of the passed
  * in triangle
@@ -169,10 +161,29 @@ bool pointInTriangle(const triangle& tri,
 	return true;
 }
  
+ /**
+ * Read pixel data starting with the pixel at coordinates
+ * (0, 0), up to (width,  height), into the array
+ * pointed to by data.  The boundaries are lower-inclusive,
+ * that is, a call with width = height = 1 would just read
+ * the pixel at (0, 0).
+ *
+ * Rasterization and z-buffering should be performed when
+ * this function is called, so that the data array is filled
+ * with the actual pixel values that should be displayed on
+ * the two-dimensional screen.
+ */
 void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {	
+	cout << "Begin" << endl;
+	for(unsigned i = 0; i < listOfTriangles.size(); i++) {
+		cout << i << ":" << listOfTriangles.at(i).a.position << endl;
+		cout << i << ":" << listOfTriangles.at(i).b.position << endl;
+		cout << i << ":" << listOfTriangles.at(i).c.position << endl << endl;
+	}
+	
 	float pixWidth = 2.0 / width;
 	float pixHeight = 2.0 / height;
 	
@@ -280,13 +291,17 @@ void mglVertex3(MGLfloat x,
 {
 	vec4 position = {x,y,z,1};
 
-	position = currentProjMatrix * currentModelMatrix * position;	
+	position = matrixStackProj.top() * matrixStackModel.top() * position;
 
+	//position[0] /= position[3];
+	//position[1] /= position[3];
+	//position[2] /= position[3];
+	
 	vertex newVertex;
 	
 	newVertex.position = position;
 	newVertex.color = currentColor;
-
+	
 	listOfVertices.push_back(newVertex);
 }
 
@@ -309,9 +324,9 @@ void mglMatrixMode(MGLmatrix_mode mode)
 void mglPushMatrix()
 {
 	if(matmode) {
-		matrixStackProj.push_back(currentProjMatrix);
+		matrixStackProj.push(matrixStackProj.top());
 	} else {
-		matrixStackModel.push_back(currentModelMatrix);
+		matrixStackModel.push(matrixStackModel.top());
 	}
 }
 
@@ -322,12 +337,12 @@ void mglPushMatrix()
 void mglPopMatrix()
 {
 	if(matmode) {
-		if(!matrixStackProj.empty()) {
-			matrixStackProj.erase(matrixStackProj.end());
+		if(matrixStackProj.size() > 1) {
+			matrixStackProj.pop();
 		}
 	} else {
-		if(!matrixStackProj.empty()) {
-			matrixStackModel.erase(matrixStackModel.end());
+		if(matrixStackModel.size() > 1) {
+			matrixStackModel.pop();
 		}
 	}
 }
@@ -338,9 +353,9 @@ void mglPopMatrix()
 void mglLoadIdentity()
 {
 	if(matmode) {
-		currentProjMatrix = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+		matrixStackProj.top() = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 	} else {
-		currentModelMatrix = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
+		matrixStackModel.top() = {1,0,0,0, 0,1,0,0, 0,0,1,0, 0,0,0,1};
 	}
 }
 
@@ -359,15 +374,15 @@ void mglLoadIdentity()
 void mglLoadMatrix(const MGLfloat *matrix)
 {
 	if(matmode) {
-		currentProjMatrix = {matrix[0],matrix[4],matrix[8],matrix[12],
-				     matrix[1],matrix[5],matrix[9],matrix[13],
-				     matrix[2],matrix[6],matrix[10],matrix[14],
-				     matrix[3],matrix[7],matrix[11],matrix[15]};
+		matrixStackProj.top() = {matrix[0],matrix[4],matrix[8],matrix[12],
+								  matrix[1],matrix[5],matrix[9],matrix[13],
+								  matrix[2],matrix[6],matrix[10],matrix[14],
+								  matrix[3],matrix[7],matrix[11],matrix[15]};
 	} else {
-		currentModelMatrix = {matrix[0],matrix[4],matrix[8],matrix[12],
-				      matrix[1],matrix[5],matrix[9],matrix[13],
-				      matrix[2],matrix[6],matrix[10],matrix[14],
-				      matrix[3],matrix[7],matrix[11],matrix[15]};
+		matrixStackModel.top() = {matrix[0],matrix[4],matrix[8],matrix[12],
+								  matrix[1],matrix[5],matrix[9],matrix[13],
+								  matrix[2],matrix[6],matrix[10],matrix[14],
+								  matrix[3],matrix[7],matrix[11],matrix[15]};
 	}
 }
 
@@ -389,10 +404,11 @@ void mglMultMatrix(const MGLfloat *matrix)
 			   matrix[4],matrix[5],matrix[6],matrix[7],
 			   matrix[8],matrix[9],matrix[10],matrix[11],
 			   matrix[12],matrix[13],matrix[14],matrix[15]};
+			   
 	if(matmode) {					   
-		currentProjMatrix = currentProjMatrix * multMatrix;
+		matrixStackProj.top() = matrixStackProj.top() * multMatrix;
 	} else {
-		currentModelMatrix = currentModelMatrix * multMatrix;
+		matrixStackModel.top() = matrixStackModel.top() * multMatrix;
 	}
 }
 
@@ -404,6 +420,13 @@ void mglTranslate(MGLfloat x,
                   MGLfloat y,
                   MGLfloat z)
 {
+	mat4 transMatrix = {1,0,0,0,  0,1,0,0,  0,0,1,0,  x,y,z,1};
+	
+	if(matmode) {
+		matrixStackProj.top() = matrixStackProj.top() * transMatrix;
+	} else {
+		matrixStackModel.top() = matrixStackModel.top() * transMatrix;
+	}
 }
 
 /**
@@ -416,6 +439,42 @@ void mglRotate(MGLfloat angle,
                MGLfloat y,
                MGLfloat z)
 {
+	float c = cos(angle);
+	float s = sin(angle);
+	
+	//normalize vector
+	float size = sqrt(pow(x,2) + pow(y,2) + pow(z,2));
+	float newX = x / size; 
+	float newY = y / size;
+	float newZ = z / size;
+	
+	float diffC = 1 - c;
+	
+	float XVal = pow(newX,2)*(diffC) + c;
+	float YVal = pow(newY,2)*(diffC) + c;
+	float ZVal = pow(newZ,2)*(diffC) + c;
+	
+	mat4 rotateMatrix = {XVal, 
+						 newY*newX*(diffC) + newZ*s,
+						 newX*newZ*(diffC) - newY*s,
+						 0,
+						 
+						 newX*newY*(diffC) - newZ*s,
+						 YVal,
+						 newY*newZ*(diffC) + newX*s,
+						 0,
+						 
+						 newX*newZ*(diffC) + newY*s,
+						 newY*newZ*(diffC) - newX*s,
+						 ZVal,
+						 0,
+						 
+						 0,0,0,1};
+	if(matmode) {
+		matrixStackProj.top() = matrixStackProj.top() * rotateMatrix;
+	} else {
+		matrixStackModel.top() = matrixStackModel.top() * rotateMatrix;
+	}
 }
 
 /**
@@ -426,6 +485,13 @@ void mglScale(MGLfloat x,
               MGLfloat y,
               MGLfloat z)
 {
+	mat4 scaleMatrix = {x,0,0,0,  0,y,0,0,  0,0,z,0, 0,0,0,1};
+	
+	if(matmode) {
+		matrixStackProj.top() = matrixStackProj.top() * scaleMatrix;
+	} else {
+		matrixStackModel.top() = matrixStackModel.top() * scaleMatrix;
+	}
 }
 
 /**
@@ -450,9 +516,9 @@ void mglFrustum(MGLfloat left,
 	mat4 projMatrix = {scaleX,0,0,0,  0,scaleY,0,0,  A,B,C,-1,  0,0,D,0};
 
 	if(matmode) {
-		currentProjMatrix = currentProjMatrix * projMatrix;
+		matrixStackProj.top() = matrixStackProj.top() * projMatrix;
 	} else {
-		currentModelMatrix = currentProjMatrix * projMatrix;
+		matrixStackModel.top() = matrixStackModel.top() * projMatrix;
 	}
 }
 
@@ -480,9 +546,9 @@ void mglOrtho(MGLfloat left,
 	mat4 orthoMatrix = {scaleX,0,0,0,  0,scaleY,0,0, 0,0,0,scaleZ, transX,transY,transZ,1};
 
 	if(matmode) {
-		currentProjMatrix = currentProjMatrix * orthoMatrix; 
+		matrixStackProj.top() = matrixStackProj.top() * orthoMatrix; 
 	} else {
-		currentModelMatrix = currentModelMatrix * orthoMatrix;
+		matrixStackModel.top() = matrixStackModel.top() * orthoMatrix;
 	} 
 }
 

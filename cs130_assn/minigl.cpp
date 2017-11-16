@@ -177,21 +177,31 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {	
-	/*
-	for(unsigned i = 0; i < listOfTriangles.size(); i++) {
-		cout << i << ":" << listOfTriangles.at(i).a.position << endl;
-		cout << i << ":" << listOfTriangles.at(i).b.position << endl;
-		cout << i << ":" << listOfTriangles.at(i).c.position << endl << endl;
-	}
-	*/
-	
 	float pixWidth = 2.0 / width;
 	float pixHeight = 2.0 / height;
 	
 	unsigned startpix = 0;
 	unsigned endpix = 0;
 	
+	//MGLfloat zbuf[sizeof(data)];
+	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
+		
+		/*
+		triangle tri = *t;
+		tri.a.position[0] /= tri.a.position[3];
+		tri.a.position[1] /= tri.a.position[3];
+		tri.a.position[2] /= tri.a.position[3];
+		
+		tri.b.position[0] /= tri.b.position[3];
+		tri.b.position[1] /= tri.b.position[3];
+		tri.b.position[2] /= tri.b.position[3];
+		
+		tri.c.position[0] /= tri.c.position[3];
+		tri.c.position[1] /= tri.c.position[3];
+		tri.c.position[2] /= tri.c.position[3];
+		*/
+		
 		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width, height);		
 		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
@@ -289,13 +299,13 @@ void mglVertex3(MGLfloat x,
                 MGLfloat y,
                 MGLfloat z)
 {
-	vec4 position = {x,y,z,1};
+	vec4 position = {x,y,z,1.0f};
 
 	position = matrixStackProj.top() * matrixStackModel.top() * position;
-
-	//position[0] /= position[3];
-	//position[1] /= position[3];
-	//position[2] /= position[3];
+	
+	position[0] /= position[3];
+	position[1] /= position[3];
+	position[2] /= position[3];
 	
 	vertex newVertex;
 	
@@ -544,7 +554,7 @@ void mglOrtho(MGLfloat left,
 	MGLfloat transY = -(top + bottom) / (top - bottom);
 	MGLfloat transZ = -(far + near) / (far - near);
 	
-	mat4 orthoMatrix = {scaleX,0,0,0,  0,scaleY,0,0, 0,0,0,scaleZ, transX,transY,transZ,1};
+	mat4 orthoMatrix = {scaleX,0,0,0,  0,scaleY,0,0, 0,0,scaleZ,0, transX,transY,transZ,1};
 
 	if(matmode) {
 		matrixStackProj.top() = matrixStackProj.top() * orthoMatrix; 

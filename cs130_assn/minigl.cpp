@@ -182,12 +182,12 @@ void mglReadPixels(MGLsize width,
 	
 	unsigned startpix = 0;
 	unsigned endpix = 0;
-	
+
+	cout << "triangles:" << listOfTriangles.size() << endl;	
 	//MGLfloat zbuf[sizeof(data)];
 	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
 		
-		/*
 		triangle tri = *t;
 		tri.a.position[0] /= tri.a.position[3];
 		tri.a.position[1] /= tri.a.position[3];
@@ -200,19 +200,18 @@ void mglReadPixels(MGLsize width,
 		tri.c.position[0] /= tri.c.position[3];
 		tri.c.position[1] /= tri.c.position[3];
 		tri.c.position[2] /= tri.c.position[3];
-		*/
 		
-		determineBoundingBox(*t, startpix, endpix, pixWidth, pixHeight, width, height);		
+		determineBoundingBox(tri, startpix, endpix, pixWidth, pixHeight, width, height);		
 		for(unsigned pixel = startpix; pixel < endpix; pixel++) {
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
 				continue;
 			}
-			currentColor = t->a.color;
+			currentColor = tri.b.color;
 			
 			int i = pixel % width;
 			int j = pixel / width;
 			
-			if(pointInTriangle(*t, i, j, pixWidth, pixHeight)) {
+			if(pointInTriangle(tri, i, j, pixWidth, pixHeight)) {
 				data[pixel] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
 			}
 		}
@@ -237,17 +236,20 @@ void mglBegin(MGLpoly_mode mode)
  * Stop specifying the vertices for a group of primitives.
  */
 void mglEnd()
-{	
+{
+	cout << "vertices:" << listOfVertices.size() << endl;	
 	if(drawmode) { // handles triangles
 		vertex coords[3];
 		for(unsigned int i = 0; i < listOfVertices.size(); i++) {
 			triangle newTri;
 			for(unsigned j = 0; j < 3; j++, i++) {
 				if(i >= listOfVertices.size()) {
+					cout << "i:" << i << endl;
 					goto skip;
 				}
 				coords[j] = listOfVertices.at(i);
 			}
+			i--;
 			newTri.a = coords[0];
 			newTri.b = coords[1];
 			newTri.c = coords[2];
@@ -264,6 +266,7 @@ void mglEnd()
 				}
 				coords[j] = listOfVertices.at(i);
 			}
+			i--;
 			newTri1.a = coords[0];
 			newTri1.b = coords[1];
 			newTri1.c = coords[2];
@@ -302,10 +305,6 @@ void mglVertex3(MGLfloat x,
 	vec4 position = {x,y,z,1.0f};
 
 	position = matrixStackProj.top() * matrixStackModel.top() * position;
-	
-	position[0] /= position[3];
-	position[1] /= position[3];
-	position[2] /= position[3];
 	
 	vertex newVertex;
 	

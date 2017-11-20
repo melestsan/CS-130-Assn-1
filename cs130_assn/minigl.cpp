@@ -58,7 +58,7 @@ struct triangle {
 	vertex c;
 };
 
-
+// For intializaing matrix stacks
 mat4 zeroMatrix = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 vector<mat4> initializer (1,zeroMatrix);
 

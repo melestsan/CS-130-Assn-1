@@ -160,6 +160,33 @@ bool pointInTriangle(const triangle& tri,
 
 	return true;
 }
+
+/**
+ * Function that determines the color of a point within a
+ * triangle based on the color of the triangle's vertices
+ */
+void interpolateColor(vec3 &color,
+		      const triangle tri,
+		      const int i,
+		      const int j,
+		      const float pixWidth,
+		      const float pixHeight) {
+	float worldX = (i + 0.5)*pixWidth - 1;
+	float worldY = (j + 0.5)*pixHeight - 1;
+	
+	vec4 pointPos = {worldX, worldY, 0, 1};
+	vertex point;
+	point.position = pointPos;
+	point.color = currentColor;
+	
+	float areaOfTriangle = area(tri.a,tri.b,tri.c);
+	
+	float alpha = area(point, tri.b, tri.c) / areaOfTriangle;
+	float beta = area(tri.a, point,tri.c) / areaOfTriangle;
+	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
+	
+	color = {alpha*255, beta*255, gamma*255};
+}
  
  /**
  * Read pixel data starting with the pixel at coordinates
@@ -182,6 +209,8 @@ void mglReadPixels(MGLsize width,
 	
 	unsigned startpix = 0;
 	unsigned endpix = 0;
+
+	vec3 color = {255,255,255};
 
 	cout << "triangles:" << listOfTriangles.size() << endl;	
 	//MGLfloat zbuf[sizeof(data)];
@@ -206,13 +235,13 @@ void mglReadPixels(MGLsize width,
 			if(pointNotInBoundingBox(pixel, startpix, endpix, width)) {
 				continue;
 			}
-			currentColor = tri.b.color;
-			
+				
 			int i = pixel % width;
 			int j = pixel / width;
 			
 			if(pointInTriangle(tri, i, j, pixWidth, pixHeight)) {
-				data[pixel] = Make_Pixel(currentColor[0], currentColor[1], currentColor[2]);
+				interpolateColor(color, tri, i, j, pixWidth, pixHeight);
+				data[pixel] = Make_Pixel(color[0], color[1], color[2]);
 			}
 		}
 	}

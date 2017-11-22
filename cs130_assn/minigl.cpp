@@ -166,6 +166,7 @@ bool pointInTriangle(const triangle& tri,
  * triangle based on the color of the triangle's vertices
  */
 void interpolateColor(vec3 &color,
+		      float zVal,
 		      const triangle tri,
 		      const int i,
 		      const int j,
@@ -187,6 +188,7 @@ void interpolateColor(vec3 &color,
 	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
 
 	color = alpha*tri.a.color + beta*tri.b.color + gamma*tri.c.color;
+	zVal  = alpha*tri.a.position[2] + beta*tri.b.position[2] + gamma*tri.c.position[2];
 }
  
  /**
@@ -204,17 +206,19 @@ void interpolateColor(vec3 &color,
 void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
-{	
-	float pixWidth = 2.0 / width;
-	float pixHeight = 2.0 / height;
+{
+	unsigned int size = width * height;
 	
+	MGLfloat zbuf[size] = {0};
+	MGLfloat flag[size] = {0};
+	
+	float pixWidth = 2.0 / width;
+	float pixHeight = 2.0 / height;	
 	unsigned startpix = 0;
 	unsigned endpix = 0;
 
 	vec3 color = {255,255,255};
-
-	cout << "triangles:" << listOfTriangles.size() << endl;	
-	//MGLfloat zbuf[sizeof(data)];
+	float zVal = -1;
 	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
 		
@@ -241,8 +245,15 @@ void mglReadPixels(MGLsize width,
 			int j = pixel / width;
 			
 			if(pointInTriangle(tri, i, j, pixWidth, pixHeight)) {
-				interpolateColor(color, tri, i, j, pixWidth, pixHeight);
-				data[pixel] = Make_Pixel(color[0], color[1], color[2]);
+				interpolateColor(color, zVal, tri, i, j, pixWidth, pixHeight);
+				if(flag[pixel] == 0){ // no prexisting pixel
+					data[pixel] = Make_Pixel(color[0], color[1], color[2]);					
+					zbuf[pixel] = zVal;
+					flag[pixel] = 1;
+				} else if(zbuf[pixel] < zVal) { // pixel hit, zbuffer decides
+					data[pixel] = Make_Pixel(color[0], color[1], color[2]);
+					zbuf[pixel] = zVal;
+				}
 			}
 		}
 	}

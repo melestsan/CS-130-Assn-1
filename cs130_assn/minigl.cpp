@@ -170,7 +170,8 @@ void interpolateColor(vec3 &color,
 		      const int i,
 		      const int j,
 		      const float pixWidth,
-		      const float pixHeight) {
+		      const float pixHeight) 
+{
 	float worldX = (i + 0.5)*pixWidth - 1;
 	float worldY = (j + 0.5)*pixHeight - 1;
 	
@@ -184,8 +185,8 @@ void interpolateColor(vec3 &color,
 	float alpha = area(point, tri.b, tri.c) / areaOfTriangle;
 	float beta = area(tri.a, point,tri.c) / areaOfTriangle;
 	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
-	
-	color = {alpha*255, beta*255, gamma*255};
+
+	color = alpha*tri.a.color + beta*tri.b.color + gamma*tri.c.color;
 }
  
  /**

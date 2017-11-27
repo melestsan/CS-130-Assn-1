@@ -206,6 +206,28 @@ void interpolateColor(vec3 &color,
 }
  
  /**
+  * Returns true if point is within [1,-1] clipping box
+  * returns false if otherwise. 
+  */
+ bool clipCheck(const unsigned i,
+				const unsigned j,
+				const float zVal,
+				const MGLsize width,
+				const MGLsize height) 
+{
+	if(i < 0 || i > width) {
+		return false;
+	}
+	if(j < 0 || j > height) {
+		return false;
+	}
+	if(zVal < -1 || zVal > 1) {
+		return false;
+	}
+	return true;
+ }
+ 
+ /**
  * Read pixel data starting with the pixel at coordinates
  * (0, 0), up to (width,  height), into the array
  * pointed to by data.  The boundaries are lower-inclusive,
@@ -258,9 +280,11 @@ void mglReadPixels(MGLsize width,
 			
 			if(pointInTriangle(tri, i, j, pixWidth, pixHeight)) {
 				interpolateColor(color, zVal, tri, i, j, pixWidth, pixHeight);
-				if(zVal <= zBuffer.at(pixel)) {
-					zBuffer.at(pixel) = zVal;
-					data[pixel] = Make_Pixel(color[0], color[1], color[2]);
+				if(clipCheck(i,j,zVal,width,height)) {
+					if(zVal <= zBuffer.at(pixel)) {
+						zBuffer.at(pixel) = zVal;
+						data[pixel] = Make_Pixel(color[0], color[1], color[2]);
+					}
 				}
 			}
 		}

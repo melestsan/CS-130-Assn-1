@@ -68,6 +68,7 @@ bool matmode = true; // true = proj, false = modelview
 vec3 currentColor;
 vector<vertex> listOfVertices;
 vector<triangle> listOfTriangles;
+vector<float> zBuffer;
 stack<mat4, vector<mat4> > matrixStackProj (initializer);
 stack<mat4, vector<mat4> > matrixStackModel (initializer);
 
@@ -134,7 +135,8 @@ float area(const vertex a,
  * A function that determine if a screen pixel coordinate is
  * inside the triangle in world space
  */
-bool pointInTriangle(const triangle& tri,
+bool pointInTriangle(
+			 const triangle& tri,
 		     const int i, 
 		     const int j, 
 		     const float pixWidth,
@@ -154,7 +156,7 @@ bool pointInTriangle(const triangle& tri,
 	float beta = area(tri.a, point,tri.c) / areaOfTriangle;
 	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
 	
-	if(alpha < 0.0f || beta < 0.0f || gamma < 0.0f) {
+	if(alpha <= 0.0f || beta <= 0.0f || gamma <= 0.0f) {
 		return false;
 	}
 
@@ -166,11 +168,12 @@ bool pointInTriangle(const triangle& tri,
  * triangle based on the color of the triangle's vertices
  */
 void interpolateColor(vec3 &color,
-		      const triangle tri,
-		      const int i,
-		      const int j,
-		      const float pixWidth,
-		      const float pixHeight) 
+					  float &zVal,
+					  const triangle tri,
+					  const int i,
+					  const int j,
+					  const float pixWidth,
+					  const float pixHeight) 
 {
 	float worldX = (i + 0.5)*pixWidth - 1;
 	float worldY = (j + 0.5)*pixHeight - 1;
@@ -182,9 +185,22 @@ void interpolateColor(vec3 &color,
 	
 	float areaOfTriangle = area(tri.a,tri.b,tri.c);
 	
-	float alpha = area(point, tri.b, tri.c) / areaOfTriangle;
-	float beta = area(tri.a, point,tri.c) / areaOfTriangle;
-	float gamma = area(tri.a, tri.b, point) / areaOfTriangle;
+	float alphap = area(point, tri.b, tri.c) / areaOfTriangle;
+	float betap = area(tri.a, point, tri.c) / areaOfTriangle;
+	float gammap = area(tri.a, tri.b, point) / areaOfTriangle;
+
+	float div = (alphap / tri.a.position[3]) + 
+				(betap / tri.b.position[3]) + 
+				(gammap / tri.c.position[3]);
+	
+
+	float alpha = (alphap / tri.a.position[3]) / div;
+	float beta = (betap / tri.b.position[3]) / div;
+	float gamma = (gammap / tri.c.position[3]) / div;
+	
+	zVal = alpha*tri.a.position[2] +
+		   beta*tri.b.position[2] +
+		   gamma*tri.c.position[2];
 
 	color = alpha*tri.a.color + beta*tri.b.color + gamma*tri.c.color;
 }
@@ -205,6 +221,8 @@ void mglReadPixels(MGLsize width,
                    MGLsize height,
                    MGLpixel *data)
 {	
+	zBuffer.resize(width*height, 2.0f);
+	
 	float pixWidth = 2.0 / width;
 	float pixHeight = 2.0 / height;
 	
@@ -212,9 +230,7 @@ void mglReadPixels(MGLsize width,
 	unsigned endpix = 0;
 
 	vec3 color = {255,255,255};
-
-	cout << "triangles:" << listOfTriangles.size() << endl;	
-	//MGLfloat zbuf[sizeof(data)];
+	float zVal = 2;
 	
 	for(vector<triangle>::iterator t = listOfTriangles.begin(); t != listOfTriangles.end(); t++) {
 		
@@ -241,11 +257,16 @@ void mglReadPixels(MGLsize width,
 			int j = pixel / width;
 			
 			if(pointInTriangle(tri, i, j, pixWidth, pixHeight)) {
-				interpolateColor(color, tri, i, j, pixWidth, pixHeight);
-				data[pixel] = Make_Pixel(color[0], color[1], color[2]);
+				interpolateColor(color, zVal, tri, i, j, pixWidth, pixHeight);
+				if(zVal <= zBuffer.at(pixel)) {
+					zBuffer.at(pixel) = zVal;
+					data[pixel] = Make_Pixel(color[0], color[1], color[2]);
+				}
 			}
 		}
 	}
+	
+	zBuffer.clear();
 }
 
 /**
@@ -267,14 +288,12 @@ void mglBegin(MGLpoly_mode mode)
  */
 void mglEnd()
 {
-	cout << "vertices:" << listOfVertices.size() << endl;	
 	if(drawmode) { // handles triangles
 		vertex coords[3];
 		for(unsigned int i = 0; i < listOfVertices.size(); i++) {
 			triangle newTri;
 			for(unsigned j = 0; j < 3; j++, i++) {
 				if(i >= listOfVertices.size()) {
-					cout << "i:" << i << endl;
 					goto skip;
 				}
 				coords[j] = listOfVertices.at(i);
